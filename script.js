@@ -24,12 +24,17 @@ async function fetchData() {
             return;
         }
 
-        updateTable(data);
+        if (!document.querySelector("table tbody")) {
+            populateTable(data); // Eğer tablo hiç oluşturulmadıysa, baştan oluştur
+        } else {
+            updateStatus(data); // Sadece "Durum" sütununu güncelle
+        }
     } catch (error) {
         console.error("⚠️ Hata oluştu:", error);
     }
 }
 
+// 📌 Google Sheets’ten Gelen Veriyi Temizle
 function cleanData(data) {
     return data
         .map(row => {
@@ -49,10 +54,30 @@ function cleanData(data) {
         .filter(row => row.Tarih && row.Saat && row["Şirket/Konuk"]);
 }
 
-// 📌 **Tabloyu Güncelle ama Sadece "Durum" Sütununu Değiştir**
-function updateTable(data) {
-    const now = new Date();
-    let sonlandiCount = 0;
+// 📌 **Tabloyu İlk Kez Doldur (Sadece İlk Sefer)**
+function populateTable(data) {
+    const table = document.querySelector("table");
+    if (!table) {
+        console.error("🚨 Tablo bulunamadı!");
+        return;
+    }
+
+    table.innerHTML = `
+        <thead>
+            <tr class="table-header">
+                <th>Tarih</th>
+                <th>Saat</th>
+                <th>Şirket/Konuk</th>
+                <th>Oturum Türü</th>
+                <th>Konum</th>
+                <th>Durum</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    `;
+
+    const tbody = table.querySelector("tbody");
 
     data.forEach(row => {
         const eventDate = parseDate(row.Tarih);
@@ -60,30 +85,59 @@ function updateTable(data) {
         const eventTime = new Date(eventDate);
         eventTime.setHours(parseInt(hours), parseInt(minutes), 0);
 
-        if (isNaN(eventTime.getTime())) {
-            console.error("🚨 Hatalı tarih formatı:", row.Tarih, row.Saat);
-            return;
+        let statusClass = "yaklasiyor";
+        let statusText = "YAKLAŞIYOR";
+
+        const now = new Date();
+        const diff = eventTime - now;
+        if (diff < 0) {
+            statusClass = "sonlandi";
+            statusText = "SONLANDI";
+        } else if (diff < 10 * 60 * 1000) { 
+            statusClass = "son-cagri";
+            statusText = "SON ÇAĞRI";
         }
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${row.Tarih}</td>
+            <td>${row.Saat}</td>
+            <td>${row["Şirket/Konuk"]}</td>
+            <td>${row["Oturum Türü"]}</td>
+            <td>${row.Konum}</td>
+            <td class="${statusClass}">${statusText}</td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+
+    console.log("✅ İlk tablo oluşturuldu!");
+}
+
+// 📌 **Sadece "Durum" Sütununu Güncelle**
+function updateStatus(data) {
+    const now = new Date();
+
+    data.forEach(row => {
+        const eventDate = parseDate(row.Tarih);
+        const [hours, minutes] = row.Saat.split(":");
+        const eventTime = new Date(eventDate);
+        eventTime.setHours(parseInt(hours), parseInt(minutes), 0);
 
         let statusClass = "yaklasiyor";
         let statusText = "YAKLAŞIYOR";
 
         const diff = eventTime - now;
         if (diff < 0) {
-            if (sonlandiCount < 2) {
-                statusClass = "sonlandi";
-                statusText = "SONLANDI";
-                sonlandiCount++;
-            } else {
-                return;
-            }
+            statusClass = "sonlandi";
+            statusText = "SONLANDI";
         } else if (diff < 10 * 60 * 1000) { 
             statusClass = "son-cagri";
             statusText = "SON ÇAĞRI";
         }
 
-        // **Mevcut Tabloyu Güncelle**
-        const rows = document.querySelectorAll("table tr");
+        // **Tablodaki satırları güncelle**
+        const rows = document.querySelectorAll("table tbody tr");
         rows.forEach(tr => {
             const cells = tr.children;
             if (cells.length > 5 && cells[1].innerText === row.Saat && cells[0].innerText === row.Tarih) {
@@ -93,7 +147,7 @@ function updateTable(data) {
         });
     });
 
-    console.log("✅ Tablo durumu güncellendi!");
+    console.log("✅ Durum sütunu güncellendi!");
 }
 
 // 📌 Tarih formatını `YYYY-MM-DD` olarak çeviren fonksiyon
