@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -9,24 +8,44 @@
     <script defer src="script.js"></script>
 </head>
 <body>
-    <!-- Üst Siyah Bant -->
+
+    <!-- Üst Siyah Bant (Başlık) -->
     <div class="top-bar">
-        <div class="left-text">SLOTLAR</div>
-        <div class="center-text">BUSINESSTRIP‘25</div>
-        <div class="right-text">15-16 MART 2025</div>
+        <span class="header-title">Business Club Gururla Sunar</span>
     </div>
 
     <!-- Mavi Bant -->
     <div class="blue-bar">
-        <span>Tarih</span>
-        <span>Saat</span>
-        <span>Şirket/Konuk</span>
-        <span>Oturum Türü</span>
-        <span>Konum</span>
-        <span>Durum</span>
+        <span>BUSINESSS TRIP'25</span>
     </div>
 
-    <!-- Dinamik Tablo -->
-    <table></table>
+    <!-- Tablo (Sadece Büyük Ekranlarda) -->
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Tarih</th>
+                    <th>Saat</th>
+                    <th>Şirket/Konuk</th>
+                    <th>Oturum Türü</th>
+                    <th>Konum</th>
+                    <th>Durum</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- JavaScript ile Dinamik İçerik Gelecek -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobil için Kart Görünümü -->
+    <div class="event-cards"></div>
+
+    <!-- Footer -->
+    <div class="footer">
+        © 2025 Business Club
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>

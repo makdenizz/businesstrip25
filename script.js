@@ -1,7 +1,6 @@
-
-
 const sheetURL = "https://opensheet.elk.sh/1-rcGC2o8phX7O_l_biwBoksBwdtnVsqMLqV7B4C_jNE/Sayfa1";
 
+const MAX_ETKINLIK = 8;
 
 // İlk veri çekme işlemi
 fetchData();
@@ -9,107 +8,73 @@ fetchData();
 // **Her 10 saniyede bir sadece "Durum" sütununu güncelle**
 setInterval(updateStatusOnly, 10000);
 
-// **Her 5 dakikada bir (300 saniyede bir) tabloyu tamamen yenile**
-setInterval(fetchData, 10000);
+// **Her 5 dakikada bir tabloyu tamamen yenile**
+setInterval(fetchData, 300000);
 
 // **Google Sheets'ten Veriyi Çek**
 async function fetchData() {
     try {
         console.log("📡 Veri çekme işlemi başladı...");
         const response = await fetch(sheetURL);
-        if (!response.ok) throw new Error("Google Sheets verileri alınamadı!");
+
+        if (!response.ok) {
+            throw new Error(`Google Sheets verileri alınamadı! Hata Kodu: ${response.status}`);
+        }
 
         let data = await response.json();
         console.log("✅ Veri başarıyla çekildi:", data);
 
+        // **Veriyi temizle ve güncelle**
         data = cleanData(data);
-        const selectedDate = findNextEventDate(data); // **Bugün veya en yakın etkinlik gününü bulana kadar devam et**
-
-        if (!selectedDate) {
-            console.warn("⚠️ Hiçbir etkinlik bulunamadı!");
-            document.querySelector("table tbody").innerHTML = "<tr><td colspan='6'>Hiçbir etkinlik bulunamadı.</td></tr>";
-            return;
-        }
-
-        data = data.filter(row => row.Tarih === selectedDate); // **Seçili günü filtrele**
-
-        if (!document.querySelector("table tbody")) {
-            populateTable(data);
-        }
-        updateStatusOnly();
+        updateTable(data);
+        updateMobileCards(data);
     } catch (error) {
-        console.error("⚠️ Hata oluştu:", error);
+        console.error("⚠️ Google Sheets verisi çekilemedi!", error);
     }
 }
 
 // 📌 **Google Sheets’ten Gelen Veriyi Temizle**
 function cleanData(data) {
-    return data
-        .map(row => {
-            const keys = Object.keys(row);
-            if (keys.includes("Tarih") || keys.includes("Saat")) {
-                return row; 
-            }
-
-            return {
-                "Tarih": row[keys[0]],
-                "Saat": row[keys[1]],
-                "Şirket/Konuk": row[keys[2]],
-                "Oturum Türü": row[keys[3]],
-                "Konum": row[keys[4]]
-            };
-        })
-        .filter(row => row.Tarih && row.Saat && row["Şirket/Konuk"]);
+    return data.map(row => {
+        return {
+            "Tarih": row["Tarih"],
+            "Saat": row["Saat"],
+            "Şirket/Konuk": row["Şirket/Konuk"],
+            "Oturum Türü": row["Oturum Türü"],
+            "Konum": row["Konum"],
+            "Durum": calculateStatus(row.Tarih, row.Saat) // **Durum bilgisi hesaplanıyor**
+        };
+    }).filter(row => row.Tarih && row.Saat && row["Şirket/Konuk"]);
 }
 
-// 📌 **Bugünün Etkinlikleri Yoksa Bir Sonraki Dolu Günü Bul (Tüm Boş Günleri Atlayarak Devam Et)**
-function findNextEventDate(data) {
-    let currentDate = new Date();
+// 📌 **Durum Bilgisini Hesapla (Tarih ve Saat Karşılaştırması)**
+function calculateStatus(tarih, saat) {
+    const eventDate = parseDate(tarih);
+    const [hours, minutes] = saat.split(":").map(Number);
+    
+    if (isNaN(hours) || isNaN(minutes)) return "BİLİNMEYEN";
 
-    while (true) {
-        const todayString = `${currentDate.getDate()} ${getMonthName(currentDate.getMonth())} ${currentDate.getFullYear()}`;
-        const todayEvents = data.filter(row => row.Tarih === todayString);
+    const eventTime = new Date(eventDate);
+    eventTime.setHours(hours, minutes, 0);
 
-        if (todayEvents.length > 0) {
-            return todayString; // **Dolu bir gün bulundu, bu günü kullan**
-        }
+    const now = new Date();
+    const diff = eventTime - now;
 
-        // **Eğer bugünde etkinlik yoksa bir gün ileri git**
-        currentDate.setDate(currentDate.getDate() + 1);
-
-        // **Eğer gelecekte hiçbir etkinlik yoksa sonsuz döngüye girmemek için çık**
-        if (currentDate.getFullYear() > new Date().getFullYear() + 1) {
-            return null;
-        }
+    if (diff < 0) {
+        return "SONLANDI";
+    } else if (diff < 10 * 60 * 1000) {
+        return "SON ÇAĞRI";
+    } else {
+        return "YAKLAŞIYOR";
     }
 }
 
-// 📌 **İlk Kez Tabloyu Doldur (Başlatma)**
-function populateTable(data) {
-    const table = document.querySelector("table");
-    if (!table) {
-        console.error("🚨 Tablo bulunamadı!");
-        return;
-    }
+// 📌 **Tabloyu Güncelle (Büyük Ekranlar için)**
+function updateTable(data) {
+    const tbody = document.querySelector("table tbody");
+    tbody.innerHTML = "";
 
-    table.innerHTML = `
-        <thead>
-            <tr class="table-header">
-                <th>Tarih</th>
-                <th>Saat</th>
-                <th>Şirket/Konuk</th>
-                <th>Oturum Türü</th>
-                <th>Konum</th>
-                <th>Durum</th>
-            </tr>
-        </thead>
-        <tbody>
-        </tbody>
-    `;
-
-    const tbody = table.querySelector("tbody");
-
-    data.forEach(row => {
+    data.slice(0, MAX_ETKINLIK).forEach(row => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${row.Tarih}</td>
@@ -117,15 +82,37 @@ function populateTable(data) {
             <td>${row["Şirket/Konuk"]}</td>
             <td>${row["Oturum Türü"]}</td>
             <td>${row.Konum}</td>
-            <td class="durum-cell">YAKLAŞIYOR</td>
+            <td class="durum-cell">${row.Durum}</td>
         `;
         tbody.appendChild(tr);
     });
 
-    console.log("✅ Bugünün veya en yakın etkinlik gününün etkinlikleri gösteriliyor!");
+    console.log("✅ Tablo güncellendi!");
 }
 
-// 📌 **Sadece "Durum" Sütununu Güncelle**
+// 📌 **Mobil İçin Kartları Güncelle**
+function updateMobileCards(data) {
+    const eventCards = document.querySelector(".event-cards");
+    eventCards.innerHTML = "";
+
+    data.slice(0, MAX_ETKINLIK).forEach(row => {
+        const card = document.createElement("div");
+        card.classList.add("event-card");
+
+        card.innerHTML = `
+            <div class="title">${row["Şirket/Konuk"]}</div>
+            <div class="info">${row.Tarih} - ${row.Saat}</div>
+            <div class="info">${row["Oturum Türü"]} @ ${row.Konum}</div>
+            <div class="info durum-cell">${row.Durum}</div>
+        `;
+
+        eventCards.appendChild(card);
+    });
+
+    console.log("✅ Mobil kartlar güncellendi!");
+}
+
+// 📌 **Sadece "Durum" Sütununu Güncelle (Performans İçin)**
 async function updateStatusOnly() {
     try {
         const response = await fetch(sheetURL);
@@ -133,50 +120,26 @@ async function updateStatusOnly() {
 
         let data = await response.json();
         data = cleanData(data);
-        const selectedDate = findNextEventDate(data); // **Seçili günü bul**
-        data = data.filter(row => row.Tarih === selectedDate); // **Seçili günü filtrele**
-
-        const now = new Date();
 
         // **Tablodaki satırları tara ve "Durum" sütununu güncelle**
         const rows = document.querySelectorAll("table tbody tr");
-        rows.forEach(tr => {
+        rows.forEach((tr, index) => {
             const cells = tr.children;
             if (cells.length < 6) return;
 
-            const tarih = cells[0].innerText.trim();
-            const saat = cells[1].innerText.trim();
-
-            const eventDate = parseDate(tarih);
-            const [hours, minutes] = saat.split(":");
-            const eventTime = new Date(eventDate);
-            eventTime.setHours(parseInt(hours), parseInt(minutes), 0);
-
-            let statusText = "YAKLAŞIYOR";
-            let statusClass = "yaklasiyor";
-
-            const diff = eventTime - now;
-            if (diff < 0) {
-                statusText = "SONLANDI";
-                statusClass = "sonlandi";
-            } else if (diff < 10 * 60 * 1000) {
-                statusText = "SON ÇAĞRI";
-                statusClass = "son-cagri";
-            }
-
-            // **DOM Güncelleme (Sayfa Yenilenmeden)**
+            const statusText = data[index]?.Durum || "BİLİNMEYEN";
             requestAnimationFrame(() => {
-                cells[5].innerHTML = `<span class="${statusClass}">${statusText}</span>`;
+                cells[5].innerHTML = `<span class="durum-cell">${statusText}</span>`;
             });
         });
 
-        console.log("✅ Seçili günün etkinlik durumu güncellendi!");
+        console.log("✅ Durum bilgileri güncellendi!");
     } catch (error) {
         console.error("⚠️ Durum güncelleme hatası:", error);
     }
 }
 
-// 📌 **Tarih formatını `YYYY-MM-DD` olarak çevir**
+// 📌 **Tarih Formatını `YYYY-MM-DD` olarak Çevir**
 function parseDate(dateString) {
     const months = {
         "Ocak": "01", "Şubat": "02", "Mart": "03", "Nisan": "04", "Mayıs": "05", "Haziran": "06",
@@ -191,10 +154,4 @@ function parseDate(dateString) {
     const year = parts[2];
 
     return `${year}-${month}-${day}`;
-}
-
-// 📌 **Ay isimlerini getiren fonksiyon**
-function getMonthName(monthIndex) {
-    const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
-    return months[monthIndex];
 }
