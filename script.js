@@ -6,9 +6,13 @@ const sheetURL = "https://opensheet.elk.sh/1-rcGC2o8phX7O_l_biwBoksBwdtnVsqMLqV7
 // İlk veri çekme işlemi
 fetchData();
 
-// 30 saniyede bir veriyi güncelle
-setInterval(fetchData, 30000);
+// **Her 10 saniyede bir sadece "Durum" sütununu güncelle**
+setInterval(updateStatusOnly, 10000);
 
+// **Her 5 dakikada bir (300 saniyede bir) tabloyu tamamen yenile**
+setInterval(fetchData, 300000);
+
+// **Google Sheets'ten Veriyi Çek**
 async function fetchData() {
     try {
         console.log("📡 Veri çekme işlemi başladı...");
@@ -26,15 +30,14 @@ async function fetchData() {
 
         if (!document.querySelector("table tbody")) {
             populateTable(data); // Eğer tablo hiç oluşturulmadıysa, baştan oluştur
-        } else {
-            updateStatus(data); // Sadece "Durum" sütununu güncelle
         }
+        updateStatusOnly(); // İlk veri çekildiğinde de "Durum" güncellensin
     } catch (error) {
         console.error("⚠️ Hata oluştu:", error);
     }
 }
 
-// 📌 Google Sheets’ten Gelen Veriyi Temizle
+// 📌 **Google Sheets’ten Gelen Veriyi Temizle**
 function cleanData(data) {
     return data
         .map(row => {
@@ -54,7 +57,7 @@ function cleanData(data) {
         .filter(row => row.Tarih && row.Saat && row["Şirket/Konuk"]);
 }
 
-// 📌 **Tabloyu İlk Kez Doldur (Sadece İlk Sefer)**
+// 📌 **İlk Kez Tabloyu Doldur (Başlatma)**
 function populateTable(data) {
     const table = document.querySelector("table");
     if (!table) {
@@ -80,24 +83,6 @@ function populateTable(data) {
     const tbody = table.querySelector("tbody");
 
     data.forEach(row => {
-        const eventDate = parseDate(row.Tarih);
-        const [hours, minutes] = row.Saat.split(":");
-        const eventTime = new Date(eventDate);
-        eventTime.setHours(parseInt(hours), parseInt(minutes), 0);
-
-        let statusClass = "yaklasiyor";
-        let statusText = "YAKLAŞIYOR";
-
-        const now = new Date();
-        const diff = eventTime - now;
-        if (diff < 0) {
-            statusClass = "sonlandi";
-            statusText = "SONLANDI";
-        } else if (diff < 10 * 60 * 1000) { 
-            statusClass = "son-cagri";
-            statusText = "SON ÇAĞRI";
-        }
-
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${row.Tarih}</td>
@@ -105,9 +90,8 @@ function populateTable(data) {
             <td>${row["Şirket/Konuk"]}</td>
             <td>${row["Oturum Türü"]}</td>
             <td>${row.Konum}</td>
-            <td class="${statusClass}">${statusText}</td>
+            <td class="durum-cell">YAKLAŞIYOR</td>
         `;
-
         tbody.appendChild(tr);
     });
 
@@ -115,42 +99,55 @@ function populateTable(data) {
 }
 
 // 📌 **Sadece "Durum" Sütununu Güncelle**
-function updateStatus(data) {
-    const now = new Date();
+async function updateStatusOnly() {
+    try {
+        const response = await fetch(sheetURL);
+        if (!response.ok) throw new Error("Google Sheets verileri alınamadı!");
 
-    data.forEach(row => {
-        const eventDate = parseDate(row.Tarih);
-        const [hours, minutes] = row.Saat.split(":");
-        const eventTime = new Date(eventDate);
-        eventTime.setHours(parseInt(hours), parseInt(minutes), 0);
+        let data = await response.json();
+        data = cleanData(data);
 
-        let statusClass = "yaklasiyor";
-        let statusText = "YAKLAŞIYOR";
+        const now = new Date();
 
-        const diff = eventTime - now;
-        if (diff < 0) {
-            statusClass = "sonlandi";
-            statusText = "SONLANDI";
-        } else if (diff < 10 * 60 * 1000) { 
-            statusClass = "son-cagri";
-            statusText = "SON ÇAĞRI";
-        }
-
-        // **Tablodaki satırları güncelle**
+        // **Tablodaki satırları tara ve "Durum" sütununu güncelle**
         const rows = document.querySelectorAll("table tbody tr");
         rows.forEach(tr => {
             const cells = tr.children;
-            if (cells.length > 5 && cells[1].innerText === row.Saat && cells[0].innerText === row.Tarih) {
-                cells[5].innerText = statusText; // "Durum" sütununu güncelle
-                cells[5].className = statusClass; // CSS sınıfını güncelle
-            }
-        });
-    });
+            if (cells.length < 6) return;
 
-    console.log("✅ Durum sütunu güncellendi!");
+            const tarih = cells[0].innerText.trim();
+            const saat = cells[1].innerText.trim();
+
+            const eventDate = parseDate(tarih);
+            const [hours, minutes] = saat.split(":");
+            const eventTime = new Date(eventDate);
+            eventTime.setHours(parseInt(hours), parseInt(minutes), 0);
+
+            let statusText = "YAKLAŞIYOR";
+            let statusClass = "yaklasiyor";
+
+            const diff = eventTime - now;
+            if (diff < 0) {
+                statusText = "SONLANDI";
+                statusClass = "sonlandi";
+            } else if (diff < 10 * 60 * 1000) {
+                statusText = "SON ÇAĞRI";
+                statusClass = "son-cagri";
+            }
+
+            // **DOM Güncelleme (Sayfa Yenilenmeden)**
+            requestAnimationFrame(() => {
+                cells[5].innerHTML = `<span class="${statusClass}">${statusText}</span>`;
+            });
+        });
+
+        console.log("✅ Durum sütunu güncellendi!");
+    } catch (error) {
+        console.error("⚠️ Durum güncelleme hatası:", error);
+    }
 }
 
-// 📌 Tarih formatını `YYYY-MM-DD` olarak çeviren fonksiyon
+// 📌 **Tarih formatını `YYYY-MM-DD` olarak çevir**
 function parseDate(dateString) {
     const months = {
         "Ocak": "01", "Şubat": "02", "Mart": "03", "Nisan": "04", "Mayıs": "05", "Haziran": "06",
