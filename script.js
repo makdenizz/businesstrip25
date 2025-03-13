@@ -9,7 +9,7 @@ fetchData();
 // **Her 10 saniyede bir sadece "Durum" sütununu güncelle**
 setInterval(updateStatusOnly, 10000);
 
-// **Her 5 dakikada bir (10 saniyede bir) tabloyu tamamen yenile**
+// **Her 5 dakikada bir (300 saniyede bir) tabloyu tamamen yenile**
 setInterval(fetchData, 10000);
 
 // **Google Sheets'ten Veriyi Çek**
@@ -23,15 +23,20 @@ async function fetchData() {
         console.log("✅ Veri başarıyla çekildi:", data);
 
         data = cleanData(data);
-        if (!Array.isArray(data) || data.length === 0) {
-            console.error("🚨 Hata: Google Sheets'ten gelen veri boş veya hatalı!");
+        const selectedDate = findNextEventDate(data); // **Bugün veya en yakın etkinlik gününü bulana kadar devam et**
+
+        if (!selectedDate) {
+            console.warn("⚠️ Hiçbir etkinlik bulunamadı!");
+            document.querySelector("table tbody").innerHTML = "<tr><td colspan='6'>Hiçbir etkinlik bulunamadı.</td></tr>";
             return;
         }
 
+        data = data.filter(row => row.Tarih === selectedDate); // **Seçili günü filtrele**
+
         if (!document.querySelector("table tbody")) {
-            populateTable(data); // Eğer tablo hiç oluşturulmadıysa, baştan oluştur
+            populateTable(data);
         }
-        updateStatusOnly(); // İlk veri çekildiğinde de "Durum" güncellensin
+        updateStatusOnly();
     } catch (error) {
         console.error("⚠️ Hata oluştu:", error);
     }
@@ -55,6 +60,28 @@ function cleanData(data) {
             };
         })
         .filter(row => row.Tarih && row.Saat && row["Şirket/Konuk"]);
+}
+
+// 📌 **Bugünün Etkinlikleri Yoksa Bir Sonraki Dolu Günü Bul (Tüm Boş Günleri Atlayarak Devam Et)**
+function findNextEventDate(data) {
+    let currentDate = new Date();
+
+    while (true) {
+        const todayString = `${currentDate.getDate()} ${getMonthName(currentDate.getMonth())} ${currentDate.getFullYear()}`;
+        const todayEvents = data.filter(row => row.Tarih === todayString);
+
+        if (todayEvents.length > 0) {
+            return todayString; // **Dolu bir gün bulundu, bu günü kullan**
+        }
+
+        // **Eğer bugünde etkinlik yoksa bir gün ileri git**
+        currentDate.setDate(currentDate.getDate() + 1);
+
+        // **Eğer gelecekte hiçbir etkinlik yoksa sonsuz döngüye girmemek için çık**
+        if (currentDate.getFullYear() > new Date().getFullYear() + 1) {
+            return null;
+        }
+    }
 }
 
 // 📌 **İlk Kez Tabloyu Doldur (Başlatma)**
@@ -95,7 +122,7 @@ function populateTable(data) {
         tbody.appendChild(tr);
     });
 
-    console.log("✅ İlk tablo oluşturuldu!");
+    console.log("✅ Bugünün veya en yakın etkinlik gününün etkinlikleri gösteriliyor!");
 }
 
 // 📌 **Sadece "Durum" Sütununu Güncelle**
@@ -106,6 +133,8 @@ async function updateStatusOnly() {
 
         let data = await response.json();
         data = cleanData(data);
+        const selectedDate = findNextEventDate(data); // **Seçili günü bul**
+        data = data.filter(row => row.Tarih === selectedDate); // **Seçili günü filtrele**
 
         const now = new Date();
 
@@ -141,7 +170,7 @@ async function updateStatusOnly() {
             });
         });
 
-        console.log("✅ Durum sütunu güncellendi!");
+        console.log("✅ Seçili günün etkinlik durumu güncellendi!");
     } catch (error) {
         console.error("⚠️ Durum güncelleme hatası:", error);
     }
@@ -155,19 +184,17 @@ function parseDate(dateString) {
     };
 
     const parts = dateString.split(" ");
-    if (parts.length !== 3) {
-        console.error("🚨 Yanlış tarih formatı:", dateString);
-        return NaN;
-    }
+    if (parts.length !== 3) return NaN;
 
     const day = parts[0].padStart(2, '0');
     const month = months[parts[1]];
     const year = parts[2];
 
-    if (!month) {
-        console.error("🚨 Geçersiz ay bilgisi:", dateString);
-        return NaN;
-    }
-
     return `${year}-${month}-${day}`;
+}
+
+// 📌 **Ay isimlerini getiren fonksiyon**
+function getMonthName(monthIndex) {
+    const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+    return months[monthIndex];
 }
