@@ -9,8 +9,8 @@ fetchData();
 // **Her 10 saniyede bir sadece "Durum" sütununu güncelle**
 setInterval(updateStatusOnly, 10000);
 
-// **Her 5 dakikada bir (300 saniyede bir) tabloyu tamamen yenile**
-setInterval(fetchData, 300000);
+// **Her 5 dakikada bir (10 saniyede bir) tabloyu tamamen yenile**
+setInterval(fetchData, 10000);
 
 // **Google Sheets'ten Veriyi Çek**
 async function fetchData() {
