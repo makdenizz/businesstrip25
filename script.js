@@ -3,59 +3,58 @@
 const sheetURL = "https://opensheet.elk.sh/1-rcGC2o8phX7O_l_biwBoksBwdtnVsqMLqV7B4C_jNE/Sayfa1";
 
 
+// İlk veri çekme işlemi
+fetchData();
+
+// 30 saniyede bir veriyi güncelle
+setInterval(fetchData, 30000);
+
 async function fetchData() {
     try {
         console.log("📡 Veri çekme işlemi başladı...");
         const response = await fetch(sheetURL);
         if (!response.ok) throw new Error("Google Sheets verileri alınamadı!");
 
-        const data = await response.json();
+        let data = await response.json();
         console.log("✅ Veri başarıyla çekildi:", data);
 
-        // Veride hatalı veya eksik satırlar varsa log göster
+        data = cleanData(data);
         if (!Array.isArray(data) || data.length === 0) {
-            console.error("🚨 Hata: Google Sheets'ten boş veya geçersiz veri geldi!");
+            console.error("🚨 Hata: Google Sheets'ten gelen veri boş veya hatalı!");
             return;
         }
 
-        updateTableWithAnimation(data);
+        updateTable(data);
     } catch (error) {
         console.error("⚠️ Hata oluştu:", error);
     }
 }
 
-function updateTableWithAnimation(data) {
-    const table = document.querySelector("table");
-    if (!table) {
-        console.error("🚨 Tablo bulunamadı!");
-        return;
-    }
+function cleanData(data) {
+    return data
+        .map(row => {
+            const keys = Object.keys(row);
+            if (keys.includes("Tarih") || keys.includes("Saat")) {
+                return row; 
+            }
 
-    table.innerHTML = `
-        <tr class="table-header">
-            <th>Tarih</th>
-            <th>Saat</th>
-            <th>Şirket/Konuk</th>
-            <th>Oturum Türü</th>
-            <th>Konum</th>
-            <th>Durum</th>
-        </tr>
-    `;
+            return {
+                "Tarih": row[keys[0]],
+                "Saat": row[keys[1]],
+                "Şirket/Konuk": row[keys[2]],
+                "Oturum Türü": row[keys[3]],
+                "Konum": row[keys[4]]
+            };
+        })
+        .filter(row => row.Tarih && row.Saat && row["Şirket/Konuk"]);
+}
 
+// 📌 **Tabloyu Güncelle ama Sadece "Durum" Sütununu Değiştir**
+function updateTable(data) {
     const now = new Date();
-    let displayedCount = 0;
     let sonlandiCount = 0;
 
-    data.forEach((row, index) => {
-        if (displayedCount >= 8) return;
-
-        // **Boş veya hatalı satırları atla**
-        if (!row.Tarih || !row.Saat || !row["Şirket/Konuk"] || !row["Oturum Türü"] || !row.Konum) {
-            console.warn(`⚠️ Eksik veri tespit edildi, atlanıyor: ${JSON.stringify(row)}`);
-            return;
-        }
-
-        // Tarihi Date nesnesine çevir
+    data.forEach(row => {
         const eventDate = parseDate(row.Tarih);
         const [hours, minutes] = row.Saat.split(":");
         const eventTime = new Date(eventDate);
@@ -83,35 +82,18 @@ function updateTableWithAnimation(data) {
             statusText = "SON ÇAĞRI";
         }
 
-        const rowHTML = `
-            <tr style="opacity:0; transform:translateX(-100%);" id="row-${index}">
-                <td>${row.Tarih}</td>
-                <td>${row.Saat}</td>
-                <td>${row["Şirket/Konuk"]}</td>
-                <td>${row["Oturum Türü"]}</td>
-                <td>${row.Konum}</td>
-                <td class="${statusClass}">${statusText}</td>
-            </tr>
-        `;
-
-        table.innerHTML += rowHTML;
-        displayedCount++;
-    });
-
-    // Satırları tek tek ekleyerek havaalanı efekti verelim
-    let delay = 500; 
-    data.forEach((_, index) => {
-        setTimeout(() => {
-            const row = document.getElementById(`row-${index}`);
-            if (row) {
-                row.style.opacity = "1";
-                row.style.transform = "translateX(0)";
+        // **Mevcut Tabloyu Güncelle**
+        const rows = document.querySelectorAll("table tr");
+        rows.forEach(tr => {
+            const cells = tr.children;
+            if (cells.length > 5 && cells[1].innerText === row.Saat && cells[0].innerText === row.Tarih) {
+                cells[5].innerText = statusText; // "Durum" sütununu güncelle
+                cells[5].className = statusClass; // CSS sınıfını güncelle
             }
-        }, delay);
-        delay += 200;
+        });
     });
 
-    console.log("✅ Tablo güncellendi!");
+    console.log("✅ Tablo durumu güncellendi!");
 }
 
 // 📌 Tarih formatını `YYYY-MM-DD` olarak çeviren fonksiyon
@@ -138,6 +120,3 @@ function parseDate(dateString) {
 
     return `${year}-${month}-${day}`;
 }
-
-setTimeout(fetchData, 1500);
-
