@@ -1,0 +1,154 @@
+/* Arka Plan */
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(180deg, #000000, #00388b);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+/* Üst Siyah Bant */
+.top-bar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: black;
+    padding: 15px;
+    color: white;
+    font-size: 22px;
+    text-transform: uppercase;
+    width: 100%;
+}
+
+/* Business Club Gururla Sunar */
+.header-title {
+    color: #8bb8d1;
+    font-weight: bold;
+}
+
+/* Alt Mavi Bant */
+.blue-bar {
+    background-color: #003286;
+    color: white;
+    font-weight: bold;
+    padding: 12px;
+    display: flex;
+    justify-content: center;
+    font-size: 18px;
+    width: 100%;
+}
+
+/* Tablo Konteyneri (Büyük Ekranlar için) */
+.table-container {
+    width: 90%;
+    margin-top: 20px;
+    display: block; /* Büyük ekranlarda tablo görünsün */
+}
+
+/* Tablo Tasarımı */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: rgb(252, 0, 0);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Tablo Satırlarının Alternatif Renkleri */
+tr:nth-child(odd) {
+    background-color: #359dcd;
+}
+tr:nth-child(even) {
+    background-color: #8ecae6;
+}
+
+/* Tablo Hücreleri */
+td, th {
+    padding: 12px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* Durum Renkleri */
+.sonlandi {
+    color: white;
+}
+
+.son-cagri {
+    color: #e40000;
+}
+
+.yaklasiyor {
+    color: #2e2d2c;
+}
+
+/* Footer */
+.footer {
+    background: linear-gradient(180deg, #00388b, #000000);
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    color: white;
+    font-size: 14px;
+}
+
+/* 📌 MOBİL TASARIM: Kart Görünümü */
+.event-cards {
+    display: none; /* Büyük ekranda mobil kartları gösterme */
+}
+
+/* 📌 Sadece mobil ekranlarda kartları göster */
+@media (max-width: 768px) {
+    .table-container {
+        display: none; /* Küçük ekranlarda tabloyu gizle */
+    }
+
+    .event-cards {
+        display: flex; /* Küçük ekranlarda kartları göster */
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        overflow-y: auto;
+        max-height: 80vh;
+        padding: 10px;
+    }
+
+    .event-card {
+        background: linear-gradient(180deg, #359dcd, #8ecae6);
+        color: white;
+        padding: 15px;
+        margin: 10px;
+        width: 90%;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        text-align: center;
+        font-size: 16px;
+    }
+
+    .event-card .title {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .event-card .info {
+        font-size: 14px;
+    }
+
+    /* Kartların daha okunaklı olması için padding ve font büyütme */
+    .event-card {
+        padding: 20px;
+        font-size: 18px;
+    }
+
+    /* Kartları daha iyi kaydırabilmek için */
+    .event-cards {
+        overflow-y: auto;
+        scrollbar-width: thin;
+    }
+}

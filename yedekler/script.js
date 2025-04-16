@@ -96,6 +96,7 @@ function updateMobileCards(data) {
     eventCards.innerHTML = "";
 
     data.slice(0, MAX_ETKINLIK).forEach(row => {
+        const status = calculateStatus(row.Tarih, row.Saat);
         const card = document.createElement("div");
         card.classList.add("event-card");
 
@@ -103,12 +104,11 @@ function updateMobileCards(data) {
             <div class="title">${row["Şirket/Konuk"]}</div>
             <div class="info">${row.Tarih} - ${row.Saat}</div>
             <div class="info">${row["Oturum Türü"]} @ ${row.Konum}</div>
-            <div class="info durum-cell">${row.Durum}</div>
+            <div class="info durum-cell">${status}</div>
         `;
 
         eventCards.appendChild(card);
     });
-
     console.log("✅ Mobil kartlar güncellendi!");
 }
 
