@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,9 +19,21 @@
       text-align: center;
       font-family: Arial, sans-serif;
       position: relative;
+      padding: 1rem;
+      box-sizing: border-box;
     }
     #content h1 {
       font-weight: bold;
+      font-size: 1.25rem;
+      line-height: 1.4;
+      margin: 0;
+    }
+    .buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 1.5rem;
     }
     button {
       padding: 0.75rem 1.5rem;
@@ -28,32 +41,26 @@
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      position: absolute;
+      transition: transform 0.2s;
     }
   </style>
 </head>
 <body>
   <div id="content">
     <h1>Gerçekten benimle iletişimi kesmek istedin mi?</h1>
-    <button id="yes-btn">EVET</button>
-    <button id="no-btn">HAYIR</button>
+    <div class="buttons">
+      <button id="yes-btn">Evet</button>
+      <button id="no-btn">Hayır</button>
+    </div>
   </div>
   <script>
     const yesBtn = document.getElementById('yes-btn');
     const noBtn = document.getElementById('no-btn');
     const content = document.getElementById('content');
 
-    // Initial button positioning
-    function positionButtons() {
-      yesBtn.style.left = 'calc(50% - 120px)';
-      yesBtn.style.top = 'calc(50% + 20px)';
-      noBtn.style.left = 'calc(50% + 20px)';
-      noBtn.style.top = 'calc(50% + 20px)';
-    }
-    positionButtons();
-
-    // Move the "Yes" button to a random position
-    function moveYes() {
+    function moveYes(e) {
+      // prepare absolute positioning
+      yesBtn.style.position = 'absolute';
       const w = window.innerWidth - yesBtn.offsetWidth;
       const h = window.innerHeight - yesBtn.offsetHeight;
       const x = Math.random() * w;
@@ -69,13 +76,13 @@
       moveYes();
     }, { passive: false });
 
-    // Handle "No" button click
     noBtn.addEventListener('click', () => {
       content.innerHTML = `
-        <img id="result-image" src="cat.jpg" aslt="Result Image" style="max-width: 100%; height: auto;">
-        <p style="margin-top: 1rem;">O zaman neden iletişimi kes dedin? 😔</p>
+        <img id="result-image" src="cat.jpg" alt="Result Image" style="max-width: 100%; height: auto; margin-top: 1rem;">
+        <p style="margin-top: 1rem; font-size: 1rem;">O zaman neden iletişimi kes dedin? 😔</p>
       `;
     });
   </script>
 </body>
 </html>
+
